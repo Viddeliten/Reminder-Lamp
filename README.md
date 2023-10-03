@@ -1,6 +1,7 @@
 # Reminder Lamp
  
 LOLIN(WEMOS) D1 mini 
+Environment: Arduino IDE 2.2.1
 
 ## Settings
 
