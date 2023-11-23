@@ -6,7 +6,7 @@
  *
  * User resets program by pressing the button after feeding fishes.
  * Lamp starts turned off
- * Wait until 07:00 and then turn lamp on!
+ * Wait until 05:00 and then turn lamp on!
  *
  * Weakness: if the power is lost, the program will reset and lamp will be turned off without fishes being fed
  * We'll build this anyway and make smarter logic later.
@@ -55,42 +55,70 @@ void setup() {
 
   // Get time
   start_time = getNTPTime();
+
+  // we always start with the lamp off
+  lampon = false;
 }
 
 void loop() {
 
-  // Get current time
-  unsigned long current_time = getNTPTime();
+  // If the lamp is already on, we just dont do anything, we are done.
+  if(false == lampon) {
 
-  // Print time
-  // printTime(NTPtoUnixTime(current_time));
+    // Get current time
+    unsigned long current_time = getNTPTime();
 
-  // If the program has ran more than 11 hours and time is after 07:00, turn the lamp on
-  unsigned long running_time = current_time - start_time;
+    // Print time
+    // printTime(NTPtoUnixTime(current_time));
 
-  Serial.print("program has been running for:");
-  Serial.println(running_time);
+    // If the program has ran more than 3 hours and time is after 05:00, turn the lamp on
+    unsigned long running_time = current_time - start_time;
 
-  int hours = running_time / (11*60*60);
+    Serial.print("program has been running for:");
+    Serial.println(running_time);
+    Serial.print("that would be in hours:");
+    Serial.println(hourFromUnixTime(NTPtoUnixTime(running_time)));
 
-  if(running_time >= 11*60*60) {
-    Serial.print("Running time is longer than 11 hours: ");
+    float hours = running_time / (60*60);
+
+    // hours=4; // just for testing
+
+    if(hours >= 3 ) {
+      Serial.print("Running time is longer than 3 hours: ");
+      if(true) { // Check if it's time to turn it on (if hour is 05 or 06)
+        Serial.print("Current hour: ");
+        int current_hour=hourFromUnixTime(NTPtoUnixTime(current_time));
+        Serial.println(current_hour);
+        if(current_hour >= 5 && current_hour <=7) {
+          // Lamp should be on, turn it on
+          digitalWrite(LED_BUILTIN, LOW);  // turn the LED on (LOW is the voltage level)
+          lampon = true;
+        }
+      }
+    } else {
+      Serial.print("Running time is SHORTR than 3 hours: ");
+      // make sure the lamp is off
+      digitalWrite(LED_BUILTIN, HIGH);  // turn the LED off (HIGH is the voltage level, and high turns it off for some reason)
+      lampon = false;
+    }
+    Serial.println(hours);
+    
+    // wait half a second then turn lamp on and off, so we know the program is running
+    delay(500);
+    digitalWrite(LED_BUILTIN, LOW); // on
+    delay(250);
+    digitalWrite(LED_BUILTIN, HIGH);  // turn the LED off (HIGH is the voltage level, and high turns it off for some reason)
+
   } else {
-    Serial.print("Running time is SHORTR than 11 hours: ");
-  }
-  Serial.println(hours);
-
-
-  // This bit will make the lamp turn on and off repeatedly:
-  if(LOW == digitalRead(LED_BUILTIN)) {
-    digitalWrite(LED_BUILTIN, HIGH);  // turn the LED on (HIGH is the voltage level)
-  }
-  else {
-    digitalWrite(LED_BUILTIN, LOW);  // turn the LED off (LOW is the voltage level)
+    // we could do stuff here if we had a button that didn't restart the entire device. We could act on button presses.
+    digitalWrite(LED_BUILTIN, LOW);  // turn the LED on (LOW is the voltage level)
   }
 
+  Serial.print("--- Lamp on: ");
+  Serial.println(lampon);
+
+  // wait for next check
   delay(10000);  
-
 }
 
 // Connecting to a WiFi network
@@ -211,4 +239,8 @@ void printTime(unsigned long UnixTime) {
     Serial.print('0');
   }
   Serial.println(UnixTime % 60);  // print the second
+}
+
+int hourFromUnixTime(unsigned long UnixTime) {
+  return (UnixTime % 86400L) / 3600;
 }
