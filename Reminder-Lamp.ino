@@ -6,7 +6,7 @@
  *
  * User resets program by pressing the button after feeding fishes.
  * Lamp starts turned off
- * Wait until 05:00 and then turn lamp on!
+ * Wait until 05:00 (that is 06:00 swedish winter time) and then turn lamp on!
  *
  * Weakness: if the power is lost, the program will reset and lamp will be turned off without fishes being fed
  * We'll build this anyway and make smarter logic later.
@@ -43,7 +43,6 @@ unsigned long start_time;
 bool lampon;
 
 void setup() {
-
   // Sets the data rate in bits per second (baud) for serial data transmission
   Serial.begin(115200);
 
@@ -58,6 +57,7 @@ void setup() {
 
   // we always start with the lamp off
   lampon = false;
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 
 void loop() {
@@ -69,56 +69,59 @@ void loop() {
     unsigned long current_time = getNTPTime();
 
     // Print time
-    // printTime(NTPtoUnixTime(current_time));
+    Serial.print("Start time: ");
+    printTime(NTPtoUnixTime(start_time));
+    Serial.print("Current time: ");
+    printTime(NTPtoUnixTime(current_time));
 
     // If the program has ran more than 3 hours and time is after 05:00, turn the lamp on
     unsigned long running_time = current_time - start_time;
 
-    Serial.print("program has been running for:");
+    Serial.print("Program has been running for (seconds):");
     Serial.println(running_time);
-    Serial.print("that would be in hours:");
-    Serial.println(hourFromUnixTime(NTPtoUnixTime(running_time)));
 
-    float hours = running_time / (60*60);
+    float hours = (float)running_time / (60*60);
 
-    // hours=4; // just for testing
+    Serial.print("Hours:");
+    Serial.println(hours);
 
-    if(hours >= 3 ) {
-      Serial.print("Running time is longer than 3 hours: ");
-      if(true) { // Check if it's time to turn it on (if hour is 05 or 06)
-        Serial.print("Current hour: ");
-        int current_hour=hourFromUnixTime(NTPtoUnixTime(current_time));
-        Serial.println(current_hour);
-        if(current_hour >= 5 && current_hour <=7) {
-          // Lamp should be on, turn it on
-          digitalWrite(LED_BUILTIN, LOW);  // turn the LED on (LOW is the voltage level)
-          lampon = true;
-        }
+    // Wait until morning time and then 3 additional hours and turn lamp on after that.
+    // So, if human turns this on at 5.30, lamp will turn on at 8.30
+    // If reset happens at 6, the akvarium is lit and we assume it was an actual feeding happening, we do not want to turn the lamp on at 8
+    if(hours > 3 ) {
+      Serial.println("Running time is longer than 3 hours ");
+      Serial.print("Current hour: ");
+      int current_hour = hourFromUnixTime(NTPtoUnixTime(current_time));
+      Serial.println(current_hour);
+      if(current_hour >= 5 && current_hour <= 8) {
+        lampon = true;
       }
     } else {
-      Serial.print("Running time is SHORTR than 3 hours: ");
-      // make sure the lamp is off
-      digitalWrite(LED_BUILTIN, HIGH);  // turn the LED off (HIGH is the voltage level, and high turns it off for some reason)
+      Serial.println("Running time is SHORTR than 3 hours ");
       lampon = false;
     }
-    Serial.println(hours);
-    
-    // wait half a second then turn lamp on and off, so we know the program is running
-    delay(500);
+  } else {
+    // we could do stuff here if we had a button that didn't restart the entire device. We could act on button presses.
+  }
+
+  // Make the lamp be on or off
+  if(lampon) {
+    // Lamp should be on, turn it on
+    Serial.println("Turning lamp on");
+    digitalWrite(LED_BUILTIN, LOW);  // turn the LED on (LOW is the voltage level)
+  } else {
+    // Turn lamp on and off, so we know the program is running, but we end on off
+    Serial.println("Blinking");
     digitalWrite(LED_BUILTIN, LOW); // on
     delay(250);
     digitalWrite(LED_BUILTIN, HIGH);  // turn the LED off (HIGH is the voltage level, and high turns it off for some reason)
-
-  } else {
-    // we could do stuff here if we had a button that didn't restart the entire device. We could act on button presses.
-    digitalWrite(LED_BUILTIN, LOW);  // turn the LED on (LOW is the voltage level)
   }
 
   Serial.print("--- Lamp on: ");
   Serial.println(lampon);
 
   // wait for next check
-  delay(10000);  
+  delay(20000);  
 }
 
 // Connecting to a WiFi network
@@ -211,13 +214,10 @@ unsigned long getNTPTime(void)
 
 // Convert NTP time into unix timestamp
 unsigned long NTPtoUnixTime(int secsSince1900) {
-  Serial.print("Unix time = ");
   // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
   const unsigned long seventyYears = 2208988800UL;
   // subtract seventy years:
   unsigned long epoch = secsSince1900 - seventyYears;
-  // print Unix time:
-  Serial.println(epoch);
 
   return epoch;
 }
