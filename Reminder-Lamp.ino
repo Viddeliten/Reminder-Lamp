@@ -1,4 +1,5 @@
 /**
+ * Version: 1.0
  * Logic using as few new components as possible. The board has a lamp and a reset button.
  *
  * Turn the lamp on when it is time to feed our fishes.
